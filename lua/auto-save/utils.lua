@@ -1,3 +1,5 @@
+local Config = require("auto-save.config")
+
 local M = {}
 
 function M.notify(msg, level)
@@ -6,13 +8,32 @@ end
 
 function M.check_file_size(filename)
 	local size = vim.fn.getfsize(filename)
-	if size == -2 then
-		return false, "File does not exist"
-	elseif size == -1 then
-		return false, "Cannot read file size"
-	elseif size > vim.b.auto_save_config.max_size then
-		return false, "File too large"
+	if size == -1 or size == -2 or size == 0 then
+		return false, "File can't be saved"
+	elseif size > Config.max_size then
+		return false, "File size more than " .. Config.max_size
 	end
 
 	return true
 end
+
+function M.check_filetype(buf)
+	local ft = vim.bo[buf].filetype
+
+	for _, ignored in ipairs(Config.ignore_filetypes) do
+		if ft == ignored then
+			return false
+		end
+	end
+end
+
+---@param trigger_events TriggerEvent[]?
+M.create_autocmd_for_trigger_events = function(trigger_events, autocmd_opts)
+	if trigger_events ~= nil then
+		for _, event in pairs(trigger_events) do
+			vim.api.nvim_create_autocmd(event, autocmd_opts)
+		end
+	end
+end
+
+return M
