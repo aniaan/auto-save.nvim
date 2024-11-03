@@ -6,17 +6,6 @@ function M.notify(msg, level)
 	vim.notify("AutoSave: " .. msg, level or vim.log.levels.INFO)
 end
 
-function M.check_file_size(filename)
-	local size = vim.fn.getfsize(filename)
-	if size == -1 or size == -2 or size == 0 then
-		return false, "File can't be saved"
-	elseif size > Config.max_size then
-		return false, "File size more than " .. Config.max_size
-	end
-
-	return true
-end
-
 function M.check_filetype(buf)
 	local ft = vim.bo[buf].filetype
 
@@ -25,6 +14,8 @@ function M.check_filetype(buf)
 			return false
 		end
 	end
+
+	return true
 end
 
 ---@param trigger_events TriggerEvent[]?

@@ -7,6 +7,11 @@ local M = {}
 M.defaults = {
 	enabled = false,
 	delay = 1000,
+	keymaps = {
+		toggle = "<leader>as",
+		enable = "<leader>ae",
+		disable = "<leader>ad",
+	},
 	trigger_events = {
 		---@type TriggerEvent[]?
 		immediate_save = { "BufLeave", "FocusLost" },
@@ -18,16 +23,6 @@ M.defaults = {
 		cancel_defered_save = { "InsertEnter" },
 	},
 	events = { "InsertLeave", "TextChanged" },
-	ingore_filetypes = {
-		"TelescopePrompt",
-		"neo-tree",
-		"dashboard",
-		"lazy",
-		"mason",
-		"terminal",
-	},
-
-	max_size = 100 * 1024,
 }
 
 ---@type Options

@@ -23,17 +23,7 @@ local function should_save(buf)
 		return false
 	end
 
-	if not Utils.check_filetype(buf) then
-		return false
-	end
-
 	if not vim.bo[buf].modifiable or not vim.bo[buf].modified then
-		return false
-	end
-
-	local size_ok, size_err = Utils.check_file_size(filename)
-	if not size_ok then
-		Utils.notify(size_err, vim.log.levels.DEBUG)
 		return false
 	end
 
@@ -107,6 +97,9 @@ function M.enable()
 end
 
 function M.disable()
+	for buf, _ in pairs(timers) do
+		clear_timer(buf)
+	end
 	vim.api.nvim_create_augroup(GROUP_NAME, { clear = true })
 	Config.override({ enabled = false })
 	Utils.notify("AutoSave disable")
@@ -116,7 +109,7 @@ function M.toggle()
 	if Config.enabled then
 		M.disable()
 	else
-		M.enabled()
+		M.enable()()
 	end
 end
 
@@ -127,6 +120,27 @@ function M.setup(opts)
 	vim.api.nvim_create_user_command("AutoSaveToggle", M.toggle, {})
 	vim.api.nvim_create_user_command("AutoSaveEnable", M.enable, {})
 	vim.api.nvim_create_user_command("AutoSaveDisable", M.disable, {})
+
+	if Config.keymaps.toggle then
+		vim.keymap.set("n", Config.keymaps.toggle, M.toggle, {
+			desc = "Toggle auto save",
+			silent = true,
+		})
+	end
+
+	if Config.keymaps.enable then
+		vim.keymap.set("n", Config.keymaps.enable, M.enable, {
+			desc = "Enable auto save",
+			silent = true,
+		})
+	end
+
+	if Config.keymaps.disable then
+		vim.keymap.set("n", Config.keymaps.disable, M.disable, {
+			desc = "Disable auto save",
+			silent = true,
+		})
+	end
 
 	if Config.enabled then
 		M.enable()
