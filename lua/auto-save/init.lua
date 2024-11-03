@@ -36,12 +36,11 @@ local function save(buf)
 	end
 
 	if not vim.bo[buf].modified then
-		Utils.notify("Abort saving buffer")
 		return
 	end
 
 	api.nvim_buf_call(buf, function()
-		vim.cmd("noautocmd lockmarks silent! write")
+		vim.cmd("silent! write")
 	end)
 end
 
