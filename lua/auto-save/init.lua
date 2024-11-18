@@ -59,7 +59,9 @@ local function defer_save(buf)
 	timers[buf] = timer
 end
 
-function M.enable()
+--- @param trigger_notify boolean?
+function M.enable(trigger_notify)
+	trigger_notify = trigger_notify == nil and true or trigger_notify
 	local group = vim.api.nvim_create_augroup(GROUP_NAME, { clear = true })
 	local events = Config.trigger_events
 	Config.override({ enabled = true })
@@ -92,23 +94,30 @@ function M.enable()
 			end
 		end,
 	})
-	Utils.notify("AutoSave enabled")
+
+	if trigger_notify then
+		Utils.notify("AutoSave enabled")
+	end
 end
 
-function M.disable()
+--- @param trigger_notify boolean?
+function M.disable(trigger_notify)
 	for buf, _ in pairs(timers) do
 		clear_timer(buf)
 	end
 	vim.api.nvim_create_augroup(GROUP_NAME, { clear = true })
 	Config.override({ enabled = false })
-	Utils.notify("AutoSave disable")
+
+	if trigger_notify then
+		Utils.notify("AutoSave disable")
+	end
 end
 
 function M.toggle()
 	if Config.enabled then
 		M.disable()
 	else
-		M.enable()()
+		M.enable()
 	end
 end
 
@@ -142,9 +151,9 @@ function M.setup(opts)
 	end
 
 	if Config.enabled then
-		M.enable()
+		M.enable(false)
 	else
-		M.disable()
+		M.disable(false)
 	end
 end
 
