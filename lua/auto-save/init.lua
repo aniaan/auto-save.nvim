@@ -102,6 +102,7 @@ end
 
 --- @param trigger_notify boolean?
 function M.disable(trigger_notify)
+	trigger_notify = trigger_notify == nil and true or trigger_notify
 	for buf, _ in pairs(timers) do
 		clear_timer(buf)
 	end
