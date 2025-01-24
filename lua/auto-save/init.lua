@@ -165,11 +165,12 @@ M.setup = function(config)
 	H.apply_config(config)
 	H.set_keymap()
 	M.did_setup = true
-	H.notify = true
 
 	if M.config.enabled then
 		M.enable()
 	end
+
+	H.notify = true
 end
 
 return M
