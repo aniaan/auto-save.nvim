@@ -127,9 +127,9 @@ end
 
 H.set_keymap = function()
 	local keymaps = M.config.keymaps
-	vim.keymap.set("n", keymaps.toggle, M.toggle, { noremap = true, silent = true })
-	vim.keymap.set("n", keymaps.enable, M.enable, { noremap = true, silent = true })
-	vim.keymap.set("n", keymaps.disable, M.disable, { noremap = true, silent = true })
+	vim.keymap.set("n", keymaps.toggle, M.toggle, { noremap = true, silent = true, desc = "Toggle AutoSave" })
+	vim.keymap.set("n", keymaps.enable, M.enable, { noremap = true, silent = true, desc = "Enable AutoSave" })
+	vim.keymap.set("n", keymaps.disable, M.disable, { noremap = true, silent = true, desc = "Disable AutoSave" })
 end
 
 M.enable = function()
