@@ -125,17 +125,11 @@ H.apply_config = function(config)
 	H.enabled = config.enabled
 end
 
-H.create_user_commands = function()
-	vim.api.nvim_create_user_command("AutoSaveToggle", M.toggle, {})
-	vim.api.nvim_create_user_command("AutoSaveEnable", M.enable, {})
-	vim.api.nvim_create_user_command("AutoSaveDisable", M.disable, {})
-end
-
 H.set_keymap = function()
 	local keymaps = M.config.keymaps
-	api.nvim_set_keymap("n", keymaps.toggle, ":AutoSaveToggle<CR>", { noremap = true, silent = true })
-	api.nvim_set_keymap("n", keymaps.enable, ":AutoSaveEnable<CR>", { noremap = true, silent = true })
-	api.nvim_set_keymap("n", keymaps.disable, ":AutoSaveDisable<CR>", { noremap = true, silent = true })
+	vim.keymap.set("n", keymaps.toggle, M.toggle, { noremap = true, silent = true })
+	vim.keymap.set("n", keymaps.enable, M.enable, { noremap = true, silent = true })
+	vim.keymap.set("n", keymaps.disable, M.disable, { noremap = true, silent = true })
 end
 
 M.enable = function()
@@ -169,11 +163,13 @@ M.setup = function(config)
 	end
 	config = H.setup_config(config)
 	H.apply_config(config)
-	H.create_autocommands()
-	H.create_user_commands()
 	H.set_keymap()
 	M.did_setup = true
 	H.notify = true
+
+	if M.config.enabled then
+		M.enable()
+	end
 end
 
 return M
