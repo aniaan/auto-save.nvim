@@ -34,6 +34,10 @@ H.clear_timer = function(buf)
 end
 
 H.should_save = function(buf)
+	if not api.nvim_buf_is_valid(buf) then
+		return false
+	end
+
 	local filename = api.nvim_buf_get_name(buf)
 	local buftype = vim.bo[buf].buftype
 
