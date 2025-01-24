@@ -1,21 +1,39 @@
-local Config = require("auto-save.config")
-local Utils = require("auto-save.utils")
 local api = vim.api
 
 local M = {}
+M.did_setup = false
+
+M.config = {
+	enabled = false,
+	delay = 1000,
+	keymaps = {
+		toggle = "<leader>fat",
+		enable = "<leader>fae",
+		disable = "<leader>fad",
+	},
+	events = {
+		immediate_save = { "BufLeave", "FocusLost" },
+		defer_save = { "InsertLeave", "TextChanged" },
+		cancel_deferred_save = { "InsertEnter" },
+	},
+}
+
+local H = {}
+H.enabled = false
+H.notify = false
+H.default_config = vim.deepcopy(M.config)
 
 local timers = {}
-
 local GROUP_NAME = "AutoSave"
 
-local function clear_timer(buf)
+H.clear_timer = function(buf)
 	if timers[buf] then
 		timers[buf]:close()
 		timers[buf] = nil
 	end
 end
 
-local function should_save(buf)
+H.should_save = function(buf)
 	local filename = api.nvim_buf_get_name(buf)
 	local buftype = vim.bo[buf].buftype
 
@@ -30,7 +48,7 @@ local function should_save(buf)
 	return true
 end
 
-local function save(buf)
+H.save = vim.schedule_wrap(function(buf)
 	if not api.nvim_buf_is_loaded(buf) then
 		return
 	end
@@ -42,120 +60,120 @@ local function save(buf)
 	api.nvim_buf_call(buf, function()
 		vim.cmd("silent! write")
 	end)
+end)
+
+H.immediate_save = function(buf)
+	H.clear_timer(buf)
+	H.save(buf)
 end
 
-local function immediate_save(buf)
-	clear_timer(buf)
-	save(buf)
-end
-
-local function defer_save(buf)
-	clear_timer(buf)
+H.defer_save = function(buf)
+	H.clear_timer(buf)
 	local timer = vim.defer_fn(function()
-		save(buf)
+		H.save(buf)
 		timers[buf] = nil
-	end, Config.delay)
+	end, M.config.delay)
 
 	timers[buf] = timer
 end
 
---- @param trigger_notify boolean?
-function M.enable(trigger_notify)
-	trigger_notify = trigger_notify == nil and true or trigger_notify
-	local group = vim.api.nvim_create_augroup(GROUP_NAME, { clear = true })
-	local events = Config.trigger_events
-	Config.override({ enabled = true })
-	Utils.create_autocmd_for_trigger_events(events.immediate_save, {
-		group = group,
-		desc = "Immediate save a buffer",
-		callback = function(opts)
-			if should_save(opts.buf) then
-				immediate_save(opts.buf)
-			end
-		end,
-	})
+H.create_autocommands = function()
+	local gr = vim.api.nvim_create_augroup(GROUP_NAME, { clear = true })
 
-	Utils.create_autocmd_for_trigger_events(events.defer_save, {
-		group = group,
-		desc = "Defer save a buffer",
-		callback = function(opts)
-			if should_save(opts.buf) then
-				defer_save(opts.buf)
+	local au = function(events, save_func, desc)
+		if events ~= nil then
+			for _, event in pairs(events) do
+				vim.api.nvim_create_autocmd(event, {
+					group = gr,
+					callback = function(opts)
+						if H.should_save(opts.buf) then
+							save_func(opts.buf)
+						end
+					end,
+					desc = desc,
+				})
 			end
-		end,
-	})
-
-	Utils.create_autocmd_for_trigger_events(events.cancel_defered_save, {
-		group = group,
-		desc = "Cancel defer save a buffer",
-		callback = function(opts)
-			if should_save(opts.buf) then
-				clear_timer(opts.buf)
-			end
-		end,
-	})
-
-	if trigger_notify then
-		Utils.notify("AutoSave enabled")
+		end
 	end
+
+	au(M.config.events.immediate_save, H.immediate_save, "Immediate save a buffer")
+	au(M.config.events.defer_save, H.defer_save, "Defer save a buffer")
+	au(M.config.events.cancel_deferred_save, H.clear_timer, "Cancel defer save a buffer")
+	au({ "BufUnload", "BufDelete" }, function(opts)
+		H.clear_timer(opts.buf)
+	end, "Clear timer on buffer unload")
 end
 
---- @param trigger_notify boolean?
-function M.disable(trigger_notify)
-	trigger_notify = trigger_notify == nil and true or trigger_notify
-	for buf, _ in pairs(timers) do
-		clear_timer(buf)
-	end
+H.clear_autocommands = function()
 	vim.api.nvim_create_augroup(GROUP_NAME, { clear = true })
-	Config.override({ enabled = false })
+end
 
-	if trigger_notify then
-		Utils.notify("AutoSave disable")
+H.clear_timers = function()
+	for buf, _ in pairs(timers) do
+		H.clear_timer(buf)
 	end
 end
 
-function M.toggle()
-	if Config.enabled then
+H.setup_config = function(config)
+	vim.validate({ config = { config, "table", true } })
+	config = vim.tbl_deep_extend("force", vim.deepcopy(H.default_config), config or {})
+	return config
+end
+
+H.apply_config = function(config)
+	M.config = config
+	H.enabled = config.enabled
+end
+
+H.create_user_commands = function()
+	vim.api.nvim_create_user_command("AutoSaveToggle", M.toggle, {})
+	vim.api.nvim_create_user_command("AutoSaveEnable", M.enable, {})
+	vim.api.nvim_create_user_command("AutoSaveDisable", M.disable, {})
+end
+
+H.set_keymap = function()
+	local keymaps = M.config.keymaps
+	api.nvim_set_keymap("n", keymaps.toggle, ":AutoSaveToggle<CR>", { noremap = true, silent = true })
+	api.nvim_set_keymap("n", keymaps.enable, ":AutoSaveEnable<CR>", { noremap = true, silent = true })
+	api.nvim_set_keymap("n", keymaps.disable, ":AutoSaveDisable<CR>", { noremap = true, silent = true })
+end
+
+M.enable = function()
+	H.enabled = true
+	H.create_autocommands()
+	if H.notify then
+		vim.notify("AutoSave enabled ")
+	end
+end
+
+M.disable = function()
+	H.clear_autocommands()
+	H.clear_timers()
+	H.enabled = false
+	if H.notify then
+		vim.notify("AutoSave disabled")
+	end
+end
+
+M.toggle = function()
+	if H.enabled then
 		M.disable()
 	else
 		M.enable()
 	end
 end
 
----@param opts? Options
-function M.setup(opts)
-	Config.setup(opts)
-
-	vim.api.nvim_create_user_command("AutoSaveToggle", M.toggle, {})
-	vim.api.nvim_create_user_command("AutoSaveEnable", M.enable, {})
-	vim.api.nvim_create_user_command("AutoSaveDisable", M.disable, {})
-
-	if Config.keymaps.toggle then
-		vim.keymap.set("n", Config.keymaps.toggle, M.toggle, {
-			desc = "Toggle auto save",
-			silent = true,
-		})
+M.setup = function(config)
+	if M.did_setup then
+		return
 	end
-
-	if Config.keymaps.enable then
-		vim.keymap.set("n", Config.keymaps.enable, M.enable, {
-			desc = "Enable auto save",
-			silent = true,
-		})
-	end
-
-	if Config.keymaps.disable then
-		vim.keymap.set("n", Config.keymaps.disable, M.disable, {
-			desc = "Disable auto save",
-			silent = true,
-		})
-	end
-
-	if Config.enabled then
-		M.enable(false)
-	else
-		M.disable(false)
-	end
+	config = H.setup_config(config)
+	H.apply_config(config)
+	H.create_autocommands()
+	H.create_user_commands()
+	H.set_keymap()
+	M.did_setup = true
+	H.notify = true
 end
 
 return M
